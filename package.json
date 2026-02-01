@@ -1,0 +1,44 @@
+{
+  "name": "continuum",
+  "version": "1.0.0",
+  "description": "Deterministic memory substrate for engineering context",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "continuum": "./dist/cli/index.js",
+    "continuumd": "./dist/daemon/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/api/index.ts",
+    "dev:daemon": "tsx watch src/daemon/index.ts",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "lint": "eslint src --ext .ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "memory",
+    "context",
+    "engineering",
+    "continuity"
+  ],
+  "author": "",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "fastify": "^4.24.3",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.5",
+    "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "@typescript-eslint/parser": "^6.15.0",
+    "eslint": "^8.56.0",
+    "jest": "^29.7.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
+
