@@ -23,7 +23,7 @@
     "continuity"
   ],
   "author": "",
-  "license": "Apache-2.0",
+  "license": "SEE LICENSE IN LICENSE",
   "dependencies": {
     "fastify": "^4.24.3",
     "zod": "^3.22.4"

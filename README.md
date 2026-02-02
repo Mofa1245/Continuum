@@ -311,7 +311,8 @@ Continuum has been **adversarially validated**:
 
 ## License
 
-Apache License 2.0 — see [LICENSE](./LICENSE) file for details.
+Continuum Non-Commercial Source License v1.0.  
+Commercial use requires separate permission from the author.
 
 ---
 
