@@ -1,3 +1,27 @@
+Continuum is deterministic execution infrastructure for agent runs: a checkpoint and replay engine that records steps and state so runs can be replayed with the same inputs and outputs. The runtime is agent-safe: phases are recorded, checkpoints are created after steps, and the core loop is deterministic. Reproducible runs are the guarantee. AI sits on top of this layer as a consumer; it is not part of the deterministic kernel.
+
+Unlike typical agent frameworks, Continuum treats determinism and replay as first-class invariants, not optional features.
+
+## Try it in 60 seconds
+
+```bash
+npm install
+npm run build
+node dist/cli/index.js demo
+npx tsx examples/agent-kit-demo.ts
+```
+You should see PASS in the demo output when replay verification succeeds.
+
+
+## Who is this for
+
+- Agent framework builders
+- Infra engineers
+- Reproducibility researchers
+- Deterministic workflow systems
+
+---
+
 ## Authorship
 
 Primary author: Mohammed Al-Hajri  
@@ -164,6 +188,27 @@ await adapter.completeRun(runId, result);
 const replayResult = await replayEngine.replay({ runId });
 console.log(`Matched: ${replayResult.matched}`);
 ```
+
+---
+
+## Deterministic Replay Demo
+
+The demo runs a short deterministic agent scenario, optionally injects a crash, then recovers and verifies replay integrity.
+
+**What it shows:** Run recording, per-step checkpoints, crash simulation, recovery from last checkpoint, and replay verification (step-count + output-hash comparison).
+
+**How to run:**
+
+```bash
+npm run build
+node dist/cli/index.js demo           # Full 5-step run + replay
+node dist/cli/index.js demo --crash   # Crash after step 3, then recover + replay
+node dist/cli/index.js demo --crash-at=2   # Crash after step 2
+```
+
+**Expected output:** Labeled sections (`RUN START`, `STEP EXECUTION`, `CHECKPOINT SAVED`, then either full run or `CRASH SIMULATED` → `RECOVERY START` → `REPLAY START` → `REPLAY VERIFIED`). Final line is `PASS` or `FAIL` (exit code 0 or 1).
+
+**Crash → recovery → replay:** After each step the demo saves a checkpoint. When `--crash` (or `--crash-at=N`) is used, it throws a simulated crash after that step. Recovery restores memory from the last saved checkpoint; the replay engine then replays the same run from the start checkpoint and replays only the steps that completed. The verifier compares original and replayed step count and output hash; if they match, the run is deterministic and recovery is correct.
 
 ---
 

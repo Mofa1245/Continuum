@@ -9,6 +9,12 @@
  */
 
 import type { ResolveRequest, ResolveResponse } from "../types/memory.js";
+import { runDemo } from "../cli/demo-command.js";
+import { printRunSummary } from "../cli/run-inspector.js";
+import { runReplayCheck } from "../cli/replay-check.js";
+import { validateRunInvariants } from "../cli/invariant-validator.js";
+import { InMemoryStore } from "../engine/memory-store.js";
+import { InMemoryAgentRunStore } from "../engine/agent-run-store.js";
 
 const API_URL = process.env.CONTINUUM_API_URL || "http://localhost:3000";
 const API_KEY = process.env.CONTINUUM_API_KEY || "";
@@ -97,13 +103,42 @@ export async function main() {
       console.error("Error resolving context:", error);
       process.exit(1);
     }
+  } else if (command === "demo") {
+    await runDemo(args);
+  } else if (command === "inspect") {
+    const runId = args[1];
+    if (!runId) {
+      console.error("Usage: continuum inspect <runId>");
+      process.exit(1);
+    }
+    const memoryStore = new InMemoryStore();
+    const agentRunStore = new InMemoryAgentRunStore(memoryStore);
+    await printRunSummary(agentRunStore, runId);
+  } else if (command === "replay-check") {
+    const runId = args[1];
+    if (!runId) {
+      console.error("Usage: continuum replay-check <runId>");
+      process.exit(1);
+    }
+    const memoryStore = new InMemoryStore();
+    const agentRunStore = new InMemoryAgentRunStore(memoryStore);
+    await runReplayCheck(agentRunStore, memoryStore, runId);
+  } else if (command === "validate-run") {
+    const runId = args[1];
+    if (!runId) {
+      console.error("Usage: continuum validate-run <runId>");
+      process.exit(1);
+    }
+    const memoryStore = new InMemoryStore();
+    const agentRunStore = new InMemoryAgentRunStore(memoryStore);
+    await validateRunInvariants(agentRunStore, runId);
   } else if (command === "write") {
     // Write memory entry (for testing/ingestion)
     console.error("Write command not implemented in MVP");
     process.exit(1);
   } else {
     console.error(`Unknown command: ${command}`);
-    console.error("Usage: continuum resolve <task>");
+    console.error("Usage: continuum resolve <task> | continuum demo [--crash] | continuum inspect <runId> | continuum replay-check <runId> | continuum validate-run <runId>");
     process.exit(1);
   }
 }
