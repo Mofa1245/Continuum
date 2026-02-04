@@ -6,7 +6,7 @@
 
 Report vulnerabilities privately:
 
-- **Contact:** <PUT TEMP EMAIL OR PLACEHOLDER>
+- **Contact:** <mhajri901@gmail.com>
 - **Response target:** We aim to acknowledge within 72 hours.
 
 ## Scope
