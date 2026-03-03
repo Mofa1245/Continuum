@@ -1,70 +1,99 @@
-Continuum is deterministic execution infrastructure for agent runs: a checkpoint and replay engine that records steps and state so runs can be replayed with the same inputs and outputs. The runtime is agent-safe: phases are recorded, checkpoints are created after steps, and the core loop is deterministic. Reproducible runs are the guarantee. AI sits on top of this layer as a consumer; it is not part of the deterministic kernel.
-
-Unlike typical agent frameworks, Continuum treats determinism and replay as first-class invariants, not optional features.
-
-## Try it in 60 seconds
-
-```bash
-npm install
-npm run build
-node dist/cli/index.js demo
-npx tsx examples/agent-kit-demo.ts
-```
-You should see PASS in the demo output when replay verification succeeds.
-
-
-## Who is this for
-
-- Agent framework builders
-- Infra engineers
-- Reproducibility researchers
-- Deterministic workflow systems
-
----
-
-## Authorship
-
-Primary author: Mohammed Al-Hajri  
-This project was developed with AI assistance under human direction, review, and validation.
-
 # Continuum
 
-**Deterministic Replay Infrastructure for AI Agents**
+AI outputs change.
+Models update.
+Temperatures get modified.
+Silent drift breaks production systems.
 
-Continuum provides **provable determinism** for AI agent execution through checkpoint-based replay. This enables debugging, auditing, compliance, and reproducible agent behavior.
+Continuum replays and verifies multi-step LLM workflows.
+If the output changes, your CI fails.
 
----
+Run once. Verify forever.
 
-## What Continuum Does
-
-Continuum solves the **deterministic replay problem** for AI agents:
-
-- ✅ **Deterministic Memory** - Append-only, versioned, scoped memory substrate
-- ✅ **Agent Run Tracking** - Complete execution trace with checkpoint-based state
-- ✅ **Deterministic Replay** - Replay agent runs with identical outputs when deterministic inputs are preserved
-- ✅ **Divergence Detection** - Automatically detect when replay differs from original
-- ✅ **Designed for enterprise use** - Formal determinism contract, fault injection validated
-
-**This is agent memory infrastructure, not a feature.**
+![Invoice extraction drift guard: run → verify PASS → edit 72→99 → verify FAIL](demo.gif)
 
 ---
 
-## Why Continuum Exists
+## Why This Exists
 
-AI agents are **non-deterministic by nature**. This creates problems:
+AI outputs change over time. Models update. Temperature mistakes happen. Prompt tweaks slip in. **Silent drift breaks production systems** — and you only notice when users complain.
 
-- **Debugging is impossible** - Can't reproduce failures
-- **Compliance is impossible** - Can't audit decisions
-- **Testing is impossible** - Can't verify behavior
-- **Trust is impossible** - Can't prove correctness
+Continuum catches that. Store a run once. Replay it from its stored recipe. Diff the outputs. **If anything changed, verification fails.** No guessing. No "it worked on my machine." CI-friendly exit codes and one command: `verify-all`.
 
-Continuum solves this by:
-1. **Capturing** all non-deterministic inputs (seed, config, memory state)
-2. **Isolating** non-determinism at the boundary
-3. **Replaying** with identical inputs to produce identical outputs
-4. **Detecting** divergence when outputs differ
+---
 
-**This enables provable determinism for AI agents.**
+## Quick Start
+
+Three commands.
+
+```bash
+npm install && npm run build
+node dist/cli/index.js invoice-demo
+node dist/cli/index.js verify-all --strict
+```
+
+You should see **All runs verified successfully.** and exit code 0.
+
+---
+
+## CI: Drop-In Drift Check
+
+Use Continuum in GitHub Actions to fail the build when any stored AI run has drifted.
+
+```yaml
+name: AI Drift Check
+
+on: [push, pull_request]
+
+jobs:
+  verify-ai:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install and build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Verify AI runs
+        run: node dist/cli/index.js verify-all --strict
+```
+
+If any run in `./runs` no longer matches a re-execution from its stored recipe, the job fails. **No silent drift.**
+
+```
+    ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+    │  Run once   │ ──► │  Store run  │ ──► │  CI: verify  │
+    │ (invoice-   │     │  (./runs/)  │     │  verify-all  │
+    │  demo)      │     └─────────────┘     └──────┬──────┘
+    └─────────────┘                                │
+                                    pass ──► exit 0   exit 1 ◄── drift
+```
+
+---
+
+## Invoice Demo (What the GIF Shows)
+
+The demo that proves the value: **structured extraction from messy text**, then **verify that it never silently changes**.
+
+1. **Run** `node dist/cli/index.js invoice-demo`  
+   Extracts vendor, amount, currency, due_date from sample invoice text. Stores the run under `./runs`.
+
+2. **Verify** `node dist/cli/index.js verify <runId> --strict`  
+   Replays the run from its stored recipe. Output matches → **PASS**, exit 0.
+
+3. **Tamper** — Open `runs/<runId>.json`, change `"amount": 72` to `"amount": 99` in `stepOutputs.json_parse`, save.
+
+4. **Verify again** — Same command. Replay still returns 72. Stored says 99. **FAIL**, exit 1. Drift reported: `Path: json_parse.amount`, Stored vs Current.
+
+If your model (or a bad deploy) ever extracts the wrong amount, **CI fails.** That’s the guard.
 
 ---
 
@@ -80,277 +109,43 @@ Continuum solves this by:
 [ Checkpoint-Based Storage ]
 ```
 
-**Key Principle:** AI is a consumer, not the brain. The kernel is deterministic.
+**Key principle:** AI is a consumer, not the brain. The kernel is deterministic.
 
 ---
 
 ## Core Concepts
 
-### Memory Entry
+**Stored run** — Each run is saved as a JSON file in `./runs` with a **recipe** (task, provider, model, temperature) and **stepOutputs**. Replay re-executes from the recipe and diffs against stepOutputs.
 
-Normalized, machine-usable facts stored in an append-only log:
+**Verify** — `continuum verify <runId> --strict` replays one run. `continuum verify-all --strict` replays every run in `./runs`. Any mismatch → exit 1.
 
-```typescript
-{
-  orgId: string
-  scope: "global" | "org" | "repo"
-  category: "preference" | "convention" | "constraint" | "decision" | "risk"
-  key: string
-  value: string | number | boolean | object
-  confidence: number  // 0–1
-  source: "explicit" | "observed" | "inferred"
-  version: number     // Append-only versioning
-}
-```
-
-### Agent Run
-
-Complete execution record with checkpoint:
-
-```typescript
-{
-  runId: string
-  task: string
-  steps: AgentStep[]
-  checkpointId: string  // Memory state at start
-  seed?: number         // For deterministic replay
-  modelConfig?: {...}   // LLM configuration
-}
-```
-
-### Replay
-
-Deterministic replay with divergence detection:
-
-```typescript
-const result = await replayEngine.replay({
-  runId: originalRun.runId,
-  seed: 42,  // Same seed
-  modelConfig: {...}  // Same config
-});
-
-// Result:
-// - matched: true/false
-// - divergenceStep?: number
-// - originalOutput vs replayedOutput
-```
+**Recipe** — Execution metadata (provider, model, temperature, task). Replay uses only the recipe and stored input; no CLI overrides. Historically faithful.
 
 ---
 
-## Quick Start
+## Other Commands
 
-### Installation
-
-```bash
-npm install continuum  # once published
-```
-
-### Basic Usage
-
-```typescript
-import { InMemoryStore, InMemoryAgentRunStore, Resolver, ReplayEngine } from "continuum";
-import { LangGraphAdapter } from "continuum/integrations";
-
-// Initialize
-const memoryStore = new InMemoryStore();
-const runStore = new InMemoryAgentRunStore(memoryStore);
-const resolver = new Resolver(memoryStore);
-const replayEngine = new ReplayEngine(runStore, memoryStore);
-
-// Create adapter
-const adapter = new LangGraphAdapter(
-  memoryStore,
-  runStore,
-  resolver,
-  { orgId: "acme", repoId: "api-service" }
-);
-
-// Start run
-const runId = await adapter.startRun("Add authentication endpoint", {
-  seed: 42,
-  modelConfig: { model: "gpt-4", temperature: 0.7 }
-});
-
-// Resolve context
-const context = await adapter.resolveContext("Add authentication endpoint");
-const prompt = adapter.formatContext(context);
-
-// Execute agent (with context injected)
-const result = await agent.execute(task, { systemPrompt: prompt });
-
-// Record step
-await adapter.recordStep(runId, "agent_execute", { task }, result);
-
-// Complete run
-await adapter.completeRun(runId, result);
-
-// Replay
-const replayResult = await replayEngine.replay({ runId });
-console.log(`Matched: ${replayResult.matched}`);
-```
+- `continuum llm-demo` — Weather-style LLM call → JSON parse → memory write (mock or OpenAI).
+- `continuum demo` — 4-step agent demo with optional crash/recovery.
+- `continuum replay <runId>` — Replay with full diff output.
+- `continuum diff <runIdA> <runIdB>` — Compare two stored runs.
 
 ---
 
-## Deterministic Replay Demo
+## Who This Is For
 
-The demo runs a short deterministic agent scenario, optionally injects a crash, then recovers and verifies replay integrity.
-
-**What it shows:** Run recording, per-step checkpoints, crash simulation, recovery from last checkpoint, and replay verification (step-count + output-hash comparison).
-
-**How to run:**
-
-```bash
-npm run build
-node dist/cli/index.js demo           # Full 5-step run + replay
-node dist/cli/index.js demo --crash   # Crash after step 3, then recover + replay
-node dist/cli/index.js demo --crash-at=2   # Crash after step 2
-```
-
-**Expected output:** Labeled sections (`RUN START`, `STEP EXECUTION`, `CHECKPOINT SAVED`, then either full run or `CRASH SIMULATED` → `RECOVERY START` → `REPLAY START` → `REPLAY VERIFIED`). Final line is `PASS` or `FAIL` (exit code 0 or 1).
-
-**Crash → recovery → replay:** After each step the demo saves a checkpoint. When `--crash` (or `--crash-at=N`) is used, it throws a simulated crash after that step. Recovery restores memory from the last saved checkpoint; the replay engine then replays the same run from the start checkpoint and replays only the steps that completed. The verifier compares original and replayed step count and output hash; if they match, the run is deterministic and recovery is correct.
-
----
-
-## Determinism Guarantees
-
-Continuum provides **formal determinism guarantees**:
-
-### Guarantee 1: Memory State Determinism
-
-Given identical checkpoint and operations → identical memory state.
-
-### Guarantee 2: Agent Decision Determinism
-
-Given identical task, memory, config, and seed → identical decisions.
-
-### Guarantee 3: Replay Correctness
-
-Replay produces identical outputs if and only if all deterministic inputs are identical.
-
-**See [DETERMINISM_CONTRACT.md](./docs/legal/DETERMINISM_CONTRACT.md) for complete specification.**
-
----
-
-## What Continuum Does Not Do
-
-**Clear non-goals prevent scope creep:**
-
-- ❌ LLM semantic determinism (if seed not supported)
-- ❌ External API determinism (if not mocked)
-- ❌ Performance determinism (execution time may vary)
-- ❌ Schema evolution (migration required)
-- ❌ Distributed execution (single-node only)
-
-**See [NON_GOALS.md](./docs/legal/NON_GOALS.md) for complete list.**
-
----
-
-## How Continuum Fails
-
-**Transparency about failure modes builds trust:**
-
-- **Fatal Errors:** Checkpoint corruption, memory restoration failure, schema incompatibility
-- **Divergence:** LLM nondeterminism, external API changes, memory write order mismatch
-- **Warnings:** Performance degradation, allowed differences (timestamps, IDs)
-
-**See [FAILURE_MODES.md](./docs/legal/FAILURE_MODES.md) for complete failure mode specification.**
-
----
-
-## Integration
-
-### LangGraph
-
-```typescript
-import { LangGraphAdapter } from "continuum/integrations";
-
-const adapter = new LangGraphAdapter(...);
-
-// In LangGraph node
-const context = await adapter.resolveContext(task);
-const prompt = adapter.formatContext(context);
-const result = await llm.invoke([{ role: "system", content: prompt }, ...]);
-await adapter.recordStep(runId, "llm_invoke", { task }, result);
-```
-
-### CrewAI
-
-```typescript
-import { CrewAIAdapter } from "continuum/integrations";
-
-const adapter = new CrewAIAdapter(...);
-
-// In CrewAI agent
-const context = await adapter.resolveContext(task);
-agent.systemPrompt += adapter.formatContext(context);
-const result = await agent.execute(task);
-await adapter.recordAgentExecution(runId, agent.name, task, result);
-```
-
-**See [INTEGRATION_GUIDE.md](./INTEGRATION_GUIDE.md) for complete integration guide.**
-
----
-
-## Validation
-
-Continuum has been **adversarially validated**:
-
-- ✅ **Replay Invariants** - Formal correctness contract
-- ✅ **Fault Injection** - Deliberate failure testing
-- ✅ **Nondeterminism Audit** - Explicit boundary documentation
-
-**See [docs/legal](./docs/legal) for contracts and validation documentation.**
+- Infra engineers shipping LLM-backed features
+- Teams that need to catch silent output drift in CI
+- Anyone extracting structured data (invoices, tickets, etc.) and unwilling to risk wrong numbers in production
 
 ---
 
 ## Documentation
 
-**Start here:** [docs/README](./docs/README.md) - Documentation index
-
-### Legal & Contracts
-- **[What We Guarantee](./docs/legal/DETERMINISM_CONTRACT.md)** - The determinism contract
-- **[How This Fails](./docs/legal/FAILURE_MODES.md)** - Failure modes and what to do
-- **[What We Don't Do](./docs/legal/NON_GOALS.md)** - Explicit boundaries
-
-### Architecture
-- **[Architecture](./docs/architecture/ARCHITECTURE.md)** - How the system works
-
-### Integration
-- **[Integration Guide](./docs/integration/INTEGRATION_GUIDE.md)** - How to integrate
-
----
-
-## Use Cases
-
-### 1. AI Observability
-
-**Problem:** Can't debug agent failures  
-**Solution:** Replay failed runs to see exactly what happened
-
-### 2. Compliance & Audit
-
-**Problem:** Can't audit agent decisions  
-**Solution:** Replay any run to prove deterministic execution
-
-### 3. Agent Testing
-
-**Problem:** Can't test agent behavior  
-**Solution:** Replay runs to verify behavior hasn't changed
-
-### 4. Regulated AI
-
-**Problem:** Reproducibility is mandatory  
-**Solution:** Deterministic replay provides proof of reproducibility
-
----
-
-## Status
-
-**Current:** MVP - In-memory storage, single-node, validated determinism  
-**Planned future work includes:** Persistence & durability, production storage, enterprise features
-
-**This is infrastructure-grade work, not a prototype.**
+- [docs/README](./docs/README.md) — Documentation index
+- [What We Guarantee](./docs/legal/DETERMINISM_CONTRACT.md) — Determinism contract
+- [How This Fails](./docs/legal/FAILURE_MODES.md) — Failure modes
+- [What We Don't Do](./docs/legal/NON_GOALS.md) — Non-goals
 
 ---
 
@@ -367,4 +162,4 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup and architecture 
 
 ---
 
-**Continuum enables provable determinism for AI agents. This is agent memory infrastructure.**
+**Primary author:** Mohammed Al-Hajri. Developed with AI assistance under human direction, review, and validation.

@@ -25,21 +25,28 @@ function deepEqual(a: unknown, b: unknown): boolean {
 
 /**
  * Compares two run result objects (e.g. phaseResults or stepResults) and prints
- * step-by-step differences. Keys are processed in sorted order. Pure function;
- * only side effect is console output.
+ * step-by-step differences. When phaseOrder is provided, keys are shown in that
+ * order (deterministic execution order); otherwise keys are sorted alphabetically.
  *
  * @param originalResults - Result map from original run (step/phase name → value).
- * @param replayResults - Result map from replay run.
+ * @param replayResults - Result map from replay or other run.
+ * @param options - Optional: secondLabel for the second column (default "replay");
+ *                  phaseOrder: array of phase names to enforce display order.
  */
 export function printReplayDiff(
   originalResults: Record<string, unknown>,
-  replayResults: Record<string, unknown>
+  replayResults: Record<string, unknown>,
+  options?: { secondLabel?: string; phaseOrder?: string[] }
 ): void {
+  const secondLabel = options?.secondLabel ?? "replay";
+  const phaseOrder = options?.phaseOrder;
   const keySet = new Set([
     ...Object.keys(originalResults),
     ...Object.keys(replayResults),
   ]);
-  const allKeys = Array.from(keySet).sort();
+  const allKeys = phaseOrder
+    ? [...phaseOrder.filter((k) => keySet.has(k)), ...Array.from(keySet).filter((k) => !phaseOrder.includes(k))]
+    : Array.from(keySet).sort();
 
   for (const stepName of allKeys) {
     const orig = originalResults[stepName];
@@ -50,7 +57,7 @@ export function printReplayDiff(
     } else {
       console.log("✗", stepName);
       console.log("  original:", JSON.stringify(orig, null, 2));
-      console.log("  replay:  ", JSON.stringify(repl, null, 2));
+      console.log(`  ${secondLabel.padEnd(7)}:`, JSON.stringify(repl, null, 2));
     }
   }
 }

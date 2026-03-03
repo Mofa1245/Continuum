@@ -16,6 +16,7 @@ import { join, dirname } from "path";
 // Re-export persistent store
 export { FilePersistentStore, type PersistentStore } from "./persistent-store.js";
 export { computeChecksum, verifyChecksum, computeObjectChecksum, verifyObjectChecksum } from "./checksum.js";
+export { FileRunStore, type RunStore, type DeterministicRun } from "./RunStore.js";
 
 export interface Storage {
   write(entry: MemoryEntry): Promise<void>;

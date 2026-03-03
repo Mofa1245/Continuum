@@ -58,7 +58,8 @@ export async function runReplayCheck(
 
   const replayResults = stepsToPhaseResults(replayedRun.steps);
 
-  printReplayDiff(originalResults, replayResults);
+  const phaseOrder = run.steps.map((s) => s.action);
+  printReplayDiff(originalResults, replayResults, { phaseOrder });
 
   const equal = areReplayResultsEqual(originalResults, replayResults);
   console.log(equal ? "Replay verification: PASS" : "Replay verification: FAIL");

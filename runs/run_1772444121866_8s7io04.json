@@ -1,0 +1,35 @@
+{
+  "runId": "run_1772444121866_8s7io04",
+  "timestamp": 1772444121866,
+  "phases": [
+    "llm_call",
+    "json_parse",
+    "memory_write"
+  ],
+  "stepOutputs": {
+    "llm_call": {
+      "model": "gpt-4o-mini",
+      "prompt": "Weather in NYC",
+      "rawText": "{\"city\":\"NYC\",\"temperature\":72}",
+      "temperature": 0
+    },
+    "json_parse": {
+      "city": "NYC",
+      "temperature": 72
+    },
+    "memory_write": {
+      "stored": true
+    }
+  },
+  "metadata": {
+    "seed": 0,
+    "modelConfig": {
+      "model": "deterministic-runner",
+      "temperature": 0
+    },
+    "taskId": "llm-demo",
+    "agentId": "org-test"
+  },
+  "status": "completed",
+  "checkpointId": "checkpoint_1772444121866_88741pk"
+}

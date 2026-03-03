@@ -9,10 +9,15 @@
  */
 
 import type { ResolveRequest, ResolveResponse } from "../types/memory.js";
-import { runDemo } from "../cli/demo-command.js";
+import { runDemoAgent } from "../cli/demo-agent-command.js";
+import { runLlmDemo } from "../cli/llm-demo-command.js";
+import { runInvoiceDemo } from "../cli/invoice-demo-command.js";
+import { FileRunStore } from "../storage/RunStore.js";
 import { printRunSummary } from "../cli/run-inspector.js";
 import { runReplayCheck } from "../cli/replay-check.js";
 import { validateRunInvariants } from "../cli/invariant-validator.js";
+import { replayAgainstStored } from "../replay/replayFromStored.js";
+import { diffStoredRuns } from "../replay/diffStoredRuns.js";
 import { InMemoryStore } from "../engine/memory-store.js";
 import { InMemoryAgentRunStore } from "../engine/agent-run-store.js";
 
@@ -104,7 +109,14 @@ export async function main() {
       process.exit(1);
     }
   } else if (command === "demo") {
-    await runDemo(args);
+    const runStore = new FileRunStore("runs");
+    await runDemoAgent(args, runStore);
+  } else if (command === "llm-demo") {
+    const runStore = new FileRunStore("runs");
+    await runLlmDemo(args, runStore);
+  } else if (command === "invoice-demo") {
+    const runStore = new FileRunStore("runs");
+    await runInvoiceDemo(args, runStore);
   } else if (command === "inspect") {
     const runId = args[1];
     if (!runId) {
@@ -132,13 +144,59 @@ export async function main() {
     const memoryStore = new InMemoryStore();
     const agentRunStore = new InMemoryAgentRunStore(memoryStore);
     await validateRunInvariants(agentRunStore, runId);
+  } else if (command === "replay") {
+    const runId = args[1];
+    if (!runId) {
+      console.error("Usage: continuum replay <runId> [--strict]");
+      process.exit(1);
+    }
+    const strict = args.includes("--strict");
+    const pass = await replayAgainstStored(runId, undefined, { strict });
+    process.exit(pass ? 0 : 1);
+  } else if (command === "verify") {
+    const runId = args[1];
+    if (!runId) {
+      console.error("Usage: continuum verify <runId> [--strict]");
+      process.exit(1);
+    }
+    const runStore = new FileRunStore("runs");
+    const strict = args.includes("--strict");
+    const pass = await replayAgainstStored(runId, runStore, { strict });
+    console.log(pass ? "Verification: PASS" : "Verification: FAIL");
+    process.exit(pass ? 0 : 1);
+  } else if (command === "verify-all") {
+    const runStore = new FileRunStore("runs");
+    const strict = args.includes("--strict");
+    const runIds = await runStore.listRuns();
+    const failed: string[] = [];
+    for (const runId of runIds) {
+      const pass = await replayAgainstStored(runId, runStore, { strict });
+      if (!pass) failed.push(runId);
+    }
+    if (failed.length === 0) {
+      console.log("All runs verified successfully.");
+      process.exit(0);
+    }
+    console.error("Verification failed for:");
+    for (const id of failed) {
+      console.error(" -", id);
+    }
+    process.exit(1);
+  } else if (command === "diff") {
+    const runIdA = args[1];
+    const runIdB = args[2];
+    if (!runIdA || !runIdB) {
+      console.error("Usage: continuum diff <runIdA> <runIdB>");
+      process.exit(1);
+    }
+    await diffStoredRuns(runIdA, runIdB);
   } else if (command === "write") {
     // Write memory entry (for testing/ingestion)
     console.error("Write command not implemented in MVP");
     process.exit(1);
   } else {
     console.error(`Unknown command: ${command}`);
-    console.error("Usage: continuum resolve <task> | continuum demo [--crash] | continuum inspect <runId> | continuum replay-check <runId> | continuum validate-run <runId>");
+    console.error("Usage: continuum resolve <task> | continuum demo [--crash] | continuum llm-demo [--model MODEL] [--temperature N] | continuum invoice-demo | continuum inspect <runId> | continuum replay-check <runId> | continuum validate-run <runId> | continuum replay <runId> [--strict] | continuum verify <runId> [--strict] | continuum verify-all [--strict] | continuum diff <runIdA> <runIdB>");
     process.exit(1);
   }
 }

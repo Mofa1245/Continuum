@@ -9,6 +9,7 @@
 import type { MemoryStore } from "../engine/memory-store.js";
 import type { AgentRunStore } from "../engine/agent-run-store.js";
 import type { IdentityContext } from "../types/identity.js";
+import type { DeterministicRun, RunStore, ExecutionRecipe } from "../storage/RunStore.js";
 
 /**
  * A single phase in a deterministic agent run.
@@ -35,6 +36,17 @@ export interface DeterministicAgentConfig {
   store: MemoryStore;
   /** Agent run store (e.g. InMemoryAgentRunStore) for run and steps. */
   agentRunStore: AgentRunStore;
+  /** Optional filesystem RunStore to persist the run after successful completion. */
+  runStore?: RunStore;
+  /**
+   * Optional execution recipe and input for this run. When provided, these are
+   * stored alongside the run snapshot so replay can re-execute from metadata
+   * alone (no CLI flags or external configuration required). If omitted but
+   * runStore is provided, a minimal recipe will be synthesized.
+   */
+  recipe?: ExecutionRecipe;
+  /** Top-level input for the run (e.g. prompt string). */
+  input?: unknown;
 }
 
 /**
@@ -62,7 +74,7 @@ export interface DeterministicAgentResult {
 export async function runDeterministicAgent(
   config: DeterministicAgentConfig
 ): Promise<DeterministicAgentResult> {
-  const { agentId, taskId, phases, store, agentRunStore } = config;
+  const { agentId, taskId, phases, store, agentRunStore, runStore, recipe, input } = config;
 
   const seen = new Set<string>();
   for (const phase of phases) {
@@ -117,6 +129,37 @@ export async function runDeterministicAgent(
     phases: phases.length,
     phaseResults,
   });
+
+  if (runStore) {
+    const effectiveRecipe: ExecutionRecipe =
+      recipe ??
+      {
+        task: taskId,
+        provider: "internal",
+        model: "deterministic-runner",
+        temperature: 0,
+      };
+
+    const storedRun: DeterministicRun = {
+      runId: run.runId,
+      recipe: effectiveRecipe,
+      input: input ?? null,
+      stepOutputs: phaseResults,
+      timestamp: run.startedAt,
+      phases: run.steps.map((s) => s.action),
+      metadata: {
+        seed: run.seed,
+        modelConfig: run.modelConfig,
+        taskId: run.task,
+        agentId: run.orgId,
+      },
+      status: run.status,
+      checkpointId: run.checkpointId,
+    };
+    runStore.save(storedRun).catch((err) => {
+      console.error("[DeterministicRunner] Failed to persist run:", err);
+    });
+  }
 
   return {
     runId: run.runId,

@@ -1,0 +1,47 @@
+{
+  "runId": "run_1772438379954_2kt9q9c",
+  "timestamp": 1772438379954,
+  "phases": [
+    "llm_call",
+    "tool_call",
+    "llm_post_process",
+    "memory_write"
+  ],
+  "stepOutputs": {
+    "llm_call": {
+      "role": "assistant",
+      "content": "I will call the weather tool.",
+      "model": "gpt-4"
+    },
+    "tool_call": {
+      "tool": "get_weather",
+      "args": {
+        "location": "NYC"
+      },
+      "result": {
+        "temperature": 72,
+        "unit": "F",
+        "city": "NYC"
+      }
+    },
+    "llm_post_process": {
+      "content": "Weather in NYC: 72°F.",
+      "finishReason": "stop"
+    },
+    "memory_write": {
+      "key": "last_weather",
+      "value": "72°F NYC"
+    }
+  },
+  "metadata": {
+    "seed": 0,
+    "modelConfig": {
+      "model": "deterministic-runner",
+      "temperature": 0
+    },
+    "taskId": "ai-debug-demo",
+    "agentId": "org-test"
+  },
+  "status": "completed",
+  "checkpointId": "checkpoint_1772438379954_8zrp7ci"
+}
