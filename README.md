@@ -22,7 +22,45 @@ Continuum catches that. Store a run once. Replay it from its stored recipe. Diff
 
 ---
 
+## Quick Start
+
+Clone the repository and run the example pipeline.
+
+```bash
+npm install
+npm run build
+npx tsx examples/invoice-processor/pipeline.ts
+```
+
+Verify deterministic behavior:
+
+```bash
+node dist/cli/index.js verify-all --strict
+```
+
+Expected result:
+
+- ✓ invoice1 PASS
+- ✓ invoice2 PASS
+- ✓ invoice3 PASS
+
+This ensures developers can reproduce the example quickly.
+
+---
+
 ## Real Example: AI Invoice Processing
+
+This example simulates an AI invoice extraction pipeline.
+
+**Steps:**
+
+1. Raw invoice text is loaded.
+2. The LLM extracts structured fields.
+3. The output is parsed into JSON.
+4. Continuum records the run.
+5. `verify-all --strict` replays the workflow and checks for drift.
+
+If any phase output changes, verification fails.
 
 **Problem**
 
@@ -110,21 +148,39 @@ Expected result:
 
 Continuum detects the change and fails verification before corrupted data reaches production systems.
 
+**Example drift detected by Continuum:**
+
+```
+Drift detected in phase: json_parse
+
+Path: json_parse.amount
+  Stored: 72
+  Current: "72.00"
+
+Path: json_parse.vendor
+  Stored: "Acme Industrial Supply"
+  Current: "Acme Industrial"
+```
+
+This demonstrates the exact failure developers care about.
+
 With the **mock provider**, to see drift you must also simulate a model change: in `src/llm/MockProvider.ts`, make the invoice response return `amount: "72.00"` (string) instead of `72` for the invoice prompt, then run `verify-all` (without re-running the pipeline). With **OpenAI** (`OPENAI_API_KEY` set), changing the prompt alone can produce different output and trigger drift.
 
 ---
 
-## Quick Start
+## Architecture
 
-Three commands.
-
-```bash
-npm install && npm run build
-node dist/cli/index.js invoice-demo
-node dist/cli/index.js verify-all --strict
+```
+[ Agent Framework (LangGraph / CrewAI / Custom) ]
+                    ↓
+[ Continuum Adapter (Context Injection) ]
+                    ↓
+[ Deterministic Kernel (Memory + Replay) ]
+                    ↓
+[ Checkpoint-Based Storage ]
 ```
 
-You should see **All runs verified successfully.** and exit code 0.
+**Key principle:** AI is a consumer, not the brain. The kernel is deterministic.
 
 ---
 
@@ -186,22 +242,6 @@ The demo that proves the value: **structured extraction from messy text**, then 
 4. **Verify again** — Same command. Replay still returns 72. Stored says 99. **FAIL**, exit 1. Drift reported: `Path: json_parse.amount`, Stored vs Current.
 
 If your model (or a bad deploy) ever extracts the wrong amount, **CI fails.** That’s the guard.
-
----
-
-## Architecture
-
-```
-[ Agent Framework (LangGraph / CrewAI / Custom) ]
-                    ↓
-[ Continuum Adapter (Context Injection) ]
-                    ↓
-[ Deterministic Kernel (Memory + Replay) ]
-                    ↓
-[ Checkpoint-Based Storage ]
-```
-
-**Key principle:** AI is a consumer, not the brain. The kernel is deterministic.
 
 ---
 
