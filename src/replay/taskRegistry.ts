@@ -83,6 +83,7 @@ const aiDebugDemo2Executor: TaskExecutor = async (_input, recipe) => {
 const taskRegistry: Record<string, TaskExecutor> = {
   "llm-demo": llmDemoExecutor,
   "invoice-demo": llmDemoExecutor,
+  "invoice-processor": llmDemoExecutor,
   "ai-debug-demo": aiDebugDemoExecutor,
   "ai-debug-demo-2": aiDebugDemo2Executor,
 };

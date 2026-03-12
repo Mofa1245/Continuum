@@ -1,0 +1,6 @@
+Invoice #: INV-1042
+Vendor: Acme Industrial Supply
+Amount Due: $72
+Currency: USD
+Due Date: April 15, 2024
+

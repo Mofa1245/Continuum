@@ -1,0 +1,6 @@
+Invoice #: INV-3094
+Vendor: Acme Industrial Supply
+Amount Due: $89
+Currency: USD
+Due Date: June 10, 2024
+

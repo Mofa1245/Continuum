@@ -1,0 +1,6 @@
+Invoice #: INV-2089
+Vendor: Acme Industrial Supply
+Amount Due: $145.50
+Currency: USD
+Due Date: May 2, 2024
+

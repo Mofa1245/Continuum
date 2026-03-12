@@ -22,6 +22,98 @@ Continuum catches that. Store a run once. Replay it from its stored recipe. Diff
 
 ---
 
+## Real Example: AI Invoice Processing
+
+**Problem**
+
+AI pipelines can silently drift when prompts change or models update.
+
+For example, an invoice extraction system may originally output:
+
+- `amount: 72`
+
+After a prompt tweak or model update it might return:
+
+- `amount: "72.00"`
+
+This small change can break accounting pipelines or validation logic.
+
+Continuum prevents this by replaying workflow runs and detecting drift.
+
+**Example Workflow**
+
+```
+[ Input: Raw Invoice ]
+          ↓
+[ Continuum Runner ] → { Phase: LLM_Call }
+          ↓          → { Phase: JSON_Parse }
+          ↓
+       [ Stored Run ]
+            ↕
+[ verify-all --strict ]
+            ↓
+      (Replay & Diff)
+            ↓
+Exit 0 → Success
+Exit 1 → Drift Detected
+```
+
+**Run the Example**
+
+Run the invoice processor pipeline:
+
+```bash
+npx tsx examples/invoice-processor/pipeline.ts
+```
+
+Then verify deterministic behavior:
+
+```bash
+node dist/cli/index.js verify-all --strict
+```
+
+Expected result:
+
+- ✓ invoice1 PASS
+- ✓ invoice2 PASS
+- ✓ invoice3 PASS
+
+**Simulating Drift**
+
+Edit the prompt inside:
+
+`examples/invoice-processor/pipeline.ts`
+
+Change:
+
+```text
+Extract invoice fields carefully.
+```
+
+to:
+
+```text
+Extract invoice fields strictly in JSON.
+```
+
+Run again:
+
+```bash
+npx tsx examples/invoice-processor/pipeline.ts
+node dist/cli/index.js verify-all --strict
+```
+
+Expected result:
+
+- Drift detected
+- verify-all failed
+
+Continuum detects the change and fails verification before corrupted data reaches production systems.
+
+With the **mock provider**, to see drift you must also simulate a model change: in `src/llm/MockProvider.ts`, make the invoice response return `amount: "72.00"` (string) instead of `72` for the invoice prompt, then run `verify-all` (without re-running the pipeline). With **OpenAI** (`OPENAI_API_KEY` set), changing the prompt alone can produce different output and trigger drift.
+
+---
+
 ## Quick Start
 
 Three commands.
