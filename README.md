@@ -168,6 +168,34 @@ With the **mock provider**, to see drift you must also simulate a model change: 
 
 ---
 
+## CI: Automatic Drift Detection
+
+Continuum can run inside CI to prevent AI workflow drift from reaching production.
+
+Example GitHub Actions workflow:
+
+```yaml
+name: Continuum Verification
+
+on: [push]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm install
+      - run: npm run build
+      - run: npx tsx examples/invoice-processor/pipeline.ts
+      - run: node dist/cli/index.js verify-all --strict
+```
+
+If any workflow output changes, the CI job fails.
+
+This prevents silent AI drift from reaching production systems.
+
+---
+
 ## Architecture
 
 ```
