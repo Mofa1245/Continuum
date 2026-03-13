@@ -52,7 +52,7 @@ server.post<{
 
 /**
  * POST /resolve
- * Resolve context for a task
+ * Resolve context for a task.
  */
 server.post<{
   Body: ResolveRequest;
