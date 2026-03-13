@@ -1,5 +1,7 @@
 # Continuum
 
+![Continuum Verification](https://github.com/Mofa1245/Continuum/actions/workflows/continuum-verify.yml/badge.svg)
+
 AI outputs change.
 Models update.
 Temperatures get modified.
@@ -163,6 +165,10 @@ Path: json_parse.vendor
 ```
 
 This demonstrates the exact failure developers care about.
+
+### Drift Detected
+
+![Drift Proof](docs/drift-proof.png)
 
 With the **mock provider**, to see drift you must also simulate a model change: in `src/llm/MockProvider.ts`, make the invoice response return `amount: "72.00"` (string) instead of `72` for the invoice prompt, then run `verify-all` (without re-running the pipeline). With **OpenAI** (`OPENAI_API_KEY` set), changing the prompt alone can produce different output and trigger drift.
 
