@@ -2,15 +2,13 @@
 
 ![Continuum Verification](https://github.com/Mofa1245/Continuum/actions/workflows/continuum-verify.yml/badge.svg)
 
-AI outputs change.
-Models update.
-Temperatures get modified.
-Silent drift breaks production systems.
+## What Continuum Does
 
-Continuum replays and verifies multi-step LLM workflows.
-If the output changes, your CI fails.
+Continuum records AI workflow runs and replays them in CI.
 
-Run once. Verify forever.
+If any step output changes, verification fails.
+
+It prevents silent LLM output drift from reaching production systems.
 
 ![Invoice extraction drift guard: run → verify PASS → edit 72→99 → verify FAIL](demo.gif)
 
