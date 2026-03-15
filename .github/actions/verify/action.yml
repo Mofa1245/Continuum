@@ -1,0 +1,12 @@
+name: "Continuum Verify"
+description: "Detect LLM output drift in CI using Continuum"
+
+inputs:
+  strict:
+    description: "Enable strict drift verification"
+    required: false
+    default: "true"
+
+runs:
+  using: "node20"
+  main: "../../../dist/cli/index.js"

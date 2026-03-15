@@ -1,31 +1,21 @@
-name: Continuum Verification
+name: Continuum Verify
 
 on:
   push:
   pull_request:
 
 jobs:
-  verify-ai-workflows:
+  verify:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
+      - uses: actions/checkout@v4
 
       - name: Install dependencies
         run: npm install
 
-      - name: Build project
+      - name: Build Continuum
         run: npm run build
 
-      - name: Run invoice pipeline
-        run: npx tsx examples/invoice-processor/pipeline.ts
-
-      - name: Verify deterministic runs
+      - name: Verify workflows
         run: node dist/cli/index.js verify-all --strict
-

@@ -200,6 +200,27 @@ This prevents silent AI drift from reaching production systems.
 
 ---
 
+## GitHub Action
+
+Continuum can run automatically in CI using GitHub Actions.
+
+Example:
+
+```yaml
+name: Verify AI Workflows
+
+on: [push]
+
+jobs:
+  continuum:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: continuum-ai/verify@v1
+```
+
+---
+
 ## Architecture
 
 ```
