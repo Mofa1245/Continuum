@@ -184,6 +184,16 @@ If any step output has changed since the run was recorded, the job fails. The `r
 
 ---
 
+## Why LLM Drift Breaks Production Systems
+
+In traditional software, 1 + 1 always equals 2. In LLM-integrated systems, the logic layer is non-deterministic. A subtle model update or a system prompt change—like adding "be concise"—can shift a structured extraction from an integer 72 to a string "72.00".
+
+While this seems trivial, it is a silent failure. It won't trigger a standard crash; instead, it injects corrupted data into downstream accounting systems, database schemas, or automated payment triggers. By the time the drift is discovered, the production state is already compromised.
+
+Deterministic Replay shifts the detection of these failures to the CI stage. By recording the granular phases of a successful run (raw tokens, JSON parsing, memory writes), Continuum creates a baseline of "known-good" behavior. Verification ensures that any deviation in the model's reasoning or output format is caught before deployment, treating LLM outputs as strictly as unit tests.
+
+---
+
 ## CI: Automatic Drift Detection
 
 Continuum can run inside CI to prevent AI workflow drift from reaching production.
