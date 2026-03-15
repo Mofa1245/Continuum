@@ -17,5 +17,8 @@ jobs:
       - name: Build Continuum
         run: npm run build
 
+      - name: Run example pipeline
+        run: npx tsx examples/invoice-processor/pipeline.ts
+
       - name: Verify workflows
         run: node dist/cli/index.js verify-all --strict

@@ -1,6 +1,6 @@
 # Continuum
 
-![Continuum Verification](https://github.com/Mofa1245/Continuum/actions/workflows/continuum-verify.yml/badge.svg)
+![Continuum CI](https://github.com/Mofa1245/Continuum/actions/workflows/continuum-verify.yml/badge.svg)
 
 ## What Continuum Does
 
@@ -169,6 +169,18 @@ This demonstrates the exact failure developers care about.
 ![Drift Proof](docs/drift-proof.png)
 
 With the **mock provider**, to see drift you must also simulate a model change: in `src/llm/MockProvider.ts`, make the invoice response return `amount: "72.00"` (string) instead of `72` for the invoice prompt, then run `verify-all` (without re-running the pipeline). With **OpenAI** (`OPENAI_API_KEY` set), changing the prompt alone can produce different output and trigger drift.
+
+---
+
+## Using Continuum in CI
+
+Continuum runs in CI by recording workflow runs and then replaying them. The repository includes a GitHub Actions workflow (`.github/workflows/continuum-verify.yml`) that:
+
+1. Checks out the repo, installs dependencies, and builds the project.
+2. Runs the example invoice pipeline so that runs are written to `./runs`.
+3. Runs `verify-all --strict` to replay every stored run and diff outputs.
+
+If any step output has changed since the run was recorded, the job fails. The `runs/` directory is in `.gitignore`, so each CI run starts with a clean slate: the pipeline creates the runs, and verification confirms they replay identically. This prevents silent LLM output drift from reaching production.
 
 ---
 
