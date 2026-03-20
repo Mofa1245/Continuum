@@ -4,7 +4,7 @@ Continuum records AI workflow runs and replays them in CI—failing verification
 
 ## Demo
 
-![Continuum Demo](./assets/demo.gif)
+![Continuum Demo](./assets/0320.gif)
 
 Continuum detects silent LLM drift in CI by replaying workflows and diffing outputs.
 
