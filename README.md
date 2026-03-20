@@ -1,5 +1,13 @@
 # Continuum
 
+Continuum records AI workflow runs and replays them in CI—failing verification when outputs drift.
+
+## Demo
+
+![Continuum Demo](./assets/demo.gif)
+
+Continuum detects silent LLM drift in CI by replaying workflows and diffing outputs.
+
 ![Continuum CI](https://github.com/Mofa1245/Continuum/actions/workflows/continuum-verify.yml/badge.svg)
 
 ## What Continuum Does
@@ -9,8 +17,6 @@ Continuum records AI workflow runs and replays them in CI.
 If any step output changes, verification fails.
 
 It prevents silent LLM output drift from reaching production systems.
-
-![Invoice extraction drift guard: run → verify PASS → edit 72→99 → verify FAIL](demo.gif)
 
 ---
 

@@ -11,10 +11,10 @@
  * Then in CI / locally:
  *   node dist/cli/index.js verify-all --strict
  *
- * To simulate drift, change the prompt string below from
- * "Extract invoice fields carefully." to
- * "Extract invoice fields strictly in JSON."
- * Re-run the pipeline and then run verify-all --strict again.
+ * Drift demo (explicit format_drift at path "total"):
+ *   npm run continuum -- drift-demo
+ * Uses prompt_v1 (number) vs prompt_v2 (string "72.00"); drift appears in CLI verify,
+ * Dashboard diff view, TokenDiff, and DriftHeatmap.
  */
 
 import { pathToFileURL } from "url";
@@ -34,10 +34,14 @@ import { buildLlmDemoPhases } from "../../src/cli/llm-demo-command.js";
 const ORG_ID = "invoice-processor-org";
 const TASK_ID = "invoice-processor";
 
+/** Prompt v1: extract from text → typically returns total as number (e.g. 72). */
+export const PROMPT_V1_HEADER = "Extract invoice number and total amount from the text.";
+/** Prompt v2: extract as JSON → can return total as string (e.g. "72.00"). */
+export const PROMPT_V2_HEADER = "Extract invoice number and total amount as JSON.";
+
 /**
- * Baseline prompt for extraction.
- * To simulate drift, change the first line to:
- *   "Extract invoice fields strictly in JSON."
+ * Baseline prompt for extraction (legacy).
+ * To simulate drift, change to PROMPT_V2_HEADER or "Extract invoice fields strictly in JSON."
  */
 const PROMPT_HEADER = `Extract invoice fields carefully.
 
@@ -83,9 +87,10 @@ async function runForInvoice(
   provider: LLMProvider,
   model: string,
   temperature: number,
-  runStore: RunStore
+  runStore: RunStore,
+  promptHeader: string = PROMPT_HEADER
 ): Promise<string> {
-  const prompt = `${PROMPT_HEADER}\n${invoice.contents}`;
+  const prompt = `${promptHeader}\n\nInvoice text:\n\n${invoice.contents}`;
 
   const memoryStore = new InMemoryStore();
   const agentRunStore = new InMemoryAgentRunStore(memoryStore);
@@ -116,15 +121,16 @@ async function runForInvoice(
 
   const parsed = result.phaseResults.json_parse as Record<string, unknown>;
 
-  const strictJsonMode = prompt.toLowerCase().includes("strictly in json");
-
-  const amountRaw = parsed.amount as number | string | undefined;
+  const strictJsonMode =
+    prompt.toLowerCase().includes("strictly in json") ||
+    prompt.includes("as JSON");
+  const amountRaw = (parsed.amount ?? parsed.total) as number | string | undefined;
   const amountNumeric =
     typeof amountRaw === "number" ? amountRaw : amountRaw != null ? Number(amountRaw) : undefined;
 
   const accountingRecord = {
     invoice_file: invoice.fileName,
-    invoice_number: extractInvoiceNumber(invoice.contents),
+    invoice_number: (parsed.invoice_number ?? extractInvoiceNumber(invoice.contents)) as string | null,
     vendor: parsed.vendor ?? null,
     amount: strictJsonMode && amountNumeric != null ? amountNumeric.toFixed(2) : amountNumeric ?? null,
     currency: parsed.currency ?? null,
@@ -139,6 +145,13 @@ async function runForInvoice(
   return result.runId;
 }
 
+function getPromptHeader(): string {
+  const i = process.argv.indexOf("--prompt");
+  if (i >= 0 && process.argv[i + 1] === "v1") return PROMPT_V1_HEADER;
+  if (i >= 0 && process.argv[i + 1] === "v2") return PROMPT_V2_HEADER;
+  return PROMPT_HEADER;
+}
+
 async function runPipeline(): Promise<void> {
   const invoices = await loadInvoices();
   if (invoices.length === 0) {
@@ -150,14 +163,17 @@ async function runPipeline(): Promise<void> {
   const model = provider instanceof OpenAIProvider ? "gpt-4o-mini" : "mock-model";
   const temperature = 0;
   const runStore: RunStore = new FileRunStore("runs");
+  const promptHeader = getPromptHeader();
 
   console.log("--- Invoice Processor Pipeline ---");
   console.log("Using provider:", getProviderName(provider));
+  if (promptHeader === PROMPT_V1_HEADER) console.log("Prompt variant: v1 (extract from text)");
+  else if (promptHeader === PROMPT_V2_HEADER) console.log("Prompt variant: v2 (extract as JSON)");
   console.log("");
 
   const runIds: string[] = [];
   for (const invoice of invoices) {
-    const runId = await runForInvoice(invoice, provider, model, temperature, runStore);
+    const runId = await runForInvoice(invoice, provider, model, temperature, runStore, promptHeader);
     runIds.push(runId);
   }
 

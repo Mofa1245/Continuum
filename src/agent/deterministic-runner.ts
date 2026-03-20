@@ -156,7 +156,7 @@ export async function runDeterministicAgent(
       status: run.status,
       checkpointId: run.checkpointId,
     };
-    runStore.save(storedRun).catch((err) => {
+    await runStore.save(storedRun).catch((err) => {
       console.error("[DeterministicRunner] Failed to persist run:", err);
     });
   }

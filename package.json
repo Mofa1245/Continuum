@@ -10,6 +10,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "continuum": "node dist/cli/index.js",
     "demo": "ts-node src/cli/index.ts demo",
     "example:minimal-agent": "tsx examples/minimal-deterministic-agent.ts",
     "dev": "tsx watch src/api/index.ts",
